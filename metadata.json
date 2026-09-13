@@ -1,0 +1,6 @@
+{
+  "name": "DropIn",
+  "description": "Zero-friction cross-device file upload utility connecting phone to laptop via QR code and WebRTC DataChannel.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

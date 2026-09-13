@@ -1,0 +1,147 @@
+/* DropIn - Global Styles */
+:root {
+  --bg-primary: #0a0b0d;
+  --bg-surface: #121316;
+  --bg-surface-hover: #191b1f;
+  --bg-surface-active: #202328;
+  --border-subtle: #22252a;
+  --border-strong: #32363f;
+  --text-primary: #f4f4f6;
+  --text-secondary: #9aa0a6;
+  --text-tertiary: #686e77;
+  --accent-white: #ffffff;
+  --accent-black: #000000;
+  --status-emerald: #10b981;
+  --status-emerald-bg: rgba(16, 185, 129, 0.12);
+  --status-amber: #f59e0b;
+  --status-amber-bg: rgba(245, 158, 11, 0.12);
+  --status-rose: #f43f5e;
+  --status-rose-bg: rgba(244, 63, 94, 0.12);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  --shadow-subtle: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+  --shadow-elevated: 0 12px 36px -4px rgba(0, 0, 0, 0.65);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  min-height: 100%;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px 16px;
+}
+
+/* App container */
+.app-viewport {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Typography */
+.brand-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--text-primary);
+  display: inline-block;
+}
+
+.headline-primary {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.subheadline {
+  font-size: 15px;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.5;
+  max-width: 340px;
+  margin: 0 auto;
+}
+
+.monospace-digits {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+}
+
+/* Screen reader only utility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ==========================================================
+   CELESTIAL STAR ELEMENTS CSS PERFORMANCE MANAGER
+   Utilizes 'contain: layout' and 'will-change: transform' to
+   isolate layout boundaries, eliminate reflow thrashing, and
+   preserve CPU cycles for high-throughput WebRTC data processing.
+   ========================================================== */
+.ambient-stars-layer,
+.name-drop-stars-orbit {
+  contain: layout;
+  will-change: transform;
+  pointer-events: none;
+  transform: translate3d(0, 0, 0);
+}
+
+.star-glyph,
+.name-drop-star {
+  contain: layout;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  user-select: none;
+}

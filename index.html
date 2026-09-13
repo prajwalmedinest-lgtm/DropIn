@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DropIn — Zero-friction cross-device file transfer</title>
+    <meta name="description" content="Zero-friction cross-device file upload utility connecting phone to laptop via QR code and WebRTC DataChannel." />
+    <meta property="og:title" content="DropIn" />
+    <meta property="og:description" content="Zero-friction cross-device file upload utility connecting phone to laptop via QR code and WebRTC DataChannel." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    
+    <link rel="stylesheet" href="/css/global.css" />
+    <link rel="stylesheet" href="/css/components.css" />
+    <link rel="stylesheet" href="/css/animations.css" />
+  </head>
+  <body>
+    <!-- OPENING NAME DROP ANIMATION OVERLAY (2-3s Smooth Sequence) -->
+    <div class="name-drop-overlay" id="nameDropOverlay" aria-label="DropIn Introduction">
+      <div class="name-drop-content animate-name-drop" id="nameDropContent">
+        <div class="name-drop-stars-orbit">
+          <span class="name-drop-star star-twinkle-fast" style="top: -15px; left: -20px;">✦</span>
+          <span class="name-drop-star star-twinkle-medium" style="bottom: -15px; right: -25px;">✦</span>
+          <span class="name-drop-star star-twinkle-slow" style="top: 8px; right: -40px; font-size: 14px;">✧</span>
+          <span class="name-drop-star star-twinkle-fast" style="bottom: 18px; left: -35px; font-size: 12px;">✦</span>
+        </div>
+        <div class="name-drop-logo">
+          <span>DROPIN</span>
+          <span class="name-drop-spark">✦</span>
+        </div>
+        <div class="name-drop-tagline">
+          <span>Scan</span>
+          <span style="color: var(--status-emerald);">•</span>
+          <span>Select</span>
+          <span style="color: var(--status-emerald);">•</span>
+          <span>Attached</span>
+        </div>
+      </div>
+      <div class="name-drop-skip">Click anywhere to skip</div>
+    </div>
+
+    <!-- AMBIENT CELESTIAL STARS BACKGROUND LAYER -->
+    <div class="ambient-stars-layer" aria-hidden="true">
+      <span class="star-glyph star-twinkle-slow" style="top: 10%; left: 14%; font-size: 18px; opacity: 0.35;">✦</span>
+      <span class="star-glyph star-twinkle-medium" style="top: 22%; right: 16%; font-size: 13px; opacity: 0.3;">✧</span>
+      <span class="star-glyph star-twinkle-fast" style="top: 65%; left: 8%; font-size: 12px; opacity: 0.4;">✦</span>
+      <span class="star-glyph star-twinkle-slow" style="bottom: 16%; right: 12%; font-size: 19px; opacity: 0.32;">✦</span>
+      <span class="star-glyph star-floating" style="top: 42%; right: 7%; font-size: 11px; opacity: 0.25;">✧</span>
+      <span class="star-glyph star-twinkle-medium" style="bottom: 28%; left: 20%; font-size: 15px; opacity: 0.3;">✦</span>
+      <span class="star-glyph star-twinkle-fast" style="top: 8%; right: 32%; font-size: 10px; opacity: 0.35;">✦</span>
+    </div>
+
+    <main class="app-viewport" id="appMain">
+      <!-- App Brand Header with Security Shield & Panic Wipe -->
+      <div class="header-actions-row">
+        <header class="brand-title" id="brandHeader" style="margin-bottom: 0;">
+          <span class="brand-dot" aria-hidden="true"></span>
+          <span>DROPIN</span>
+          <span style="color: var(--status-emerald); font-size: 12px;">✦</span>
+        </header>
+
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button type="button" class="security-shield-btn" id="btnOpenSecurityModal" title="View cryptographic & peer-to-peer security specifications">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <span>E2EE SHIELD</span>
+            <span class="security-shield-star">✦</span>
+          </button>
+          <button type="button" class="btn-panic-wipe" id="btnPanicRevoke" title="Revoke session and purge all memory buffers">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+            <span>PURGE</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Stage Card Container -->
+      <section class="stage-card" id="stageCard" aria-live="polite">
+        
+        <!-- RECONNECTING ALERT BANNER (Triggers on DataChannel heartbeat drop / signal interference) -->
+        <div class="reconnecting-alert" id="reconnectingAlert" style="display: none;" role="alert">
+          <div class="reconnecting-alert-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="animate-spin-slow">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+            </svg>
+          </div>
+          <div class="reconnecting-alert-info">
+            <div class="reconnecting-alert-title">
+              <span>Reconnecting...</span>
+              <span class="reconnecting-alert-badge">Signal Interference</span>
+            </div>
+            <div class="reconnecting-alert-subtitle">DataChannel heartbeat interrupted. Holding stream buffer while restoring peer signal...</div>
+          </div>
+          <div class="reconnecting-alert-ping" aria-hidden="true">
+            <span class="reconnecting-pulse-dot"></span>
+          </div>
+        </div>
+
+        <!-- STATE 1: IDLE / MINI TOUR BEFORE GENERATE QR -->
+        <div class="state-view animate-fade-in" id="viewIdle">
+          <div style="margin-bottom: 16px;">
+            <div style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 9999px; background-color: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); color: #34d399; font-size: 11px; font-weight: 600; margin-bottom: 12px; font-family: var(--font-mono);">
+              <span>EPHEMERAL P2P BRIDGE</span>
+              <span>✦</span>
+            </div>
+            <h1 class="headline-primary" id="idleHeading" style="font-size: 24px;">Direct Phone-to-Laptop Upload</h1>
+            <p class="subheadline" id="idleDesc" style="font-size: 14px;">No app download. No accounts. Encrypted memory streaming straight to your browser.</p>
+          </div>
+
+          <!-- Interactive Mini Tour Section -->
+          <div class="mini-tour-wrapper" id="miniTourSection">
+            <div class="tour-steps-nav" role="tablist">
+              <button type="button" class="tour-tab-btn active" id="tourTab1" role="tab" aria-selected="true" data-step="1">
+                <span class="tour-step-number">1</span>
+                <span>Scan</span>
+              </button>
+              <button type="button" class="tour-tab-btn" id="tourTab2" role="tab" aria-selected="false" data-step="2">
+                <span class="tour-step-number">2</span>
+                <span>Select</span>
+              </button>
+              <button type="button" class="tour-tab-btn" id="tourTab3" role="tab" aria-selected="false" data-step="3">
+                <span class="tour-step-number">3</span>
+                <span>Attached</span>
+              </button>
+            </div>
+
+            <div class="tour-card-body" id="tourCardBody">
+              <div class="tour-step-badge-row">
+                <span class="tour-step-tag" id="tourStepTag">
+                  <span>STEP 1 OF 3</span>
+                  <span>✦</span>
+                </span>
+                <span style="font-size: 11px; color: var(--text-tertiary); font-family: var(--font-mono);" id="tourStepMetric">120s TTL</span>
+              </div>
+              <h3 class="tour-step-headline" id="tourStepHeadline">Scan Instant Ephemeral QR</h3>
+              <p class="tour-step-description" id="tourStepDesc">
+                Click <strong>Generate QR</strong> below to create a secure 2-minute pairing code. Point any phone camera to connect directly without installing an app or signing in.
+              </p>
+              <div class="tour-security-pills-row">
+                <span class="tour-security-pill">✦ 0 Cloud Storage</span>
+                <span class="tour-security-pill">✦ WebRTC DataChannel</span>
+                <span class="tour-security-pill">✦ Auto-Expiry</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- PRIMARY ACTION: GENERATE QR -->
+          <button type="button" class="btn-primary" id="btnConnectPhone" aria-label="Generate QR code to start pairing" style="width: 100%; padding: 14px 20px; font-size: 15px; letter-spacing: 0.08em; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect width="18" height="18" x="3" y="3" rx="2"/>
+              <path d="M7 7h.01"/>
+              <path d="M17 7h.01"/>
+              <path d="M7 17h.01"/>
+              <path d="M17 17h.01"/>
+              <path d="M12 12h.01"/>
+            </svg>
+            <span>GENERATE QR</span>
+            <span style="color: var(--status-emerald); font-size: 14px;">✦</span>
+          </button>
+        </div>
+
+        <!-- STATE 2: QR DISPLAY & WAITING WITH VIEWFINDER CAMERA FRAME -->
+        <div class="state-view animate-fade-in" id="viewQr" style="display: none; width: 100%;">
+          <div class="status-pill amber" id="qrStatusPill">
+            <span class="status-indicator-dot pulse-amber" aria-hidden="true"></span>
+            <span>Waiting for phone camera...</span>
+          </div>
+
+          <h2 class="headline-primary" style="font-size: 22px; margin-bottom: 4px;">Scan with your phone</h2>
+          <p class="subheadline" style="font-size: 13px;">Open your phone camera and point at the frame below.</p>
+
+          <!-- QR Container with Viewfinder Frame Overlay & Border Pulse -->
+          <div class="qr-frame-wrapper" id="qrWrapper">
+            <canvas id="qrCanvas" class="qr-canvas" width="220" height="220" aria-label="QR Code to pair phone"></canvas>
+            
+            <!-- Camera Viewfinder Overlay & Scanning Guide -->
+            <div class="qr-target-overlay" aria-hidden="true">
+              <div class="qr-pulse-reticle"></div>
+              <div class="qr-corner-bracket top-left"></div>
+              <div class="qr-corner-bracket top-right"></div>
+              <div class="qr-corner-bracket bottom-left"></div>
+              <div class="qr-corner-bracket bottom-right"></div>
+              <div class="qr-scan-laser-beam"></div>
+            </div>
+          </div>
+
+          <div class="qr-align-hint">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+              <circle cx="12" cy="13" r="3"/>
+            </svg>
+            <span>Align camera inside frame</span>
+          </div>
+
+          <div style="display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--text-secondary); font-size: 13px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <span>Session expires in <strong class="monospace-digits" id="sessionCountdown">02:00</strong></span>
+          </div>
+
+          <div class="qr-url-pill" id="qrUrlDisplay">
+            <span id="qrUrlText" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">...</span>
+          </div>
+
+          <div class="test-actions-bar">
+            <button type="button" class="btn-ghost" id="btnCopyUrl" title="Copy session link to clipboard">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
+                <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+              </svg>
+              <span id="copyUrlLabel">Copy link</span>
+            </button>
+            <span style="color: var(--border-strong);">•</span>
+            <button type="button" class="btn-ghost" id="btnOpenMobileTest" title="Open mobile view in new tab for testing">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                <polyline points="15 3 21 3 21 9"/>
+                <line x1="10" x2="21" y1="14" y2="3"/>
+              </svg>
+              <span>Test in tab</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- STATE 3: PHONE CONNECTED (READY TO RECEIVE) -->
+        <div class="state-view animate-fade-in" id="viewConnected" style="display: none; width: 100%;">
+          <div class="status-pill emerald" id="connectedStatusPill">
+            <span class="status-indicator-dot pulse" id="connectedStatusDot" aria-hidden="true"></span>
+            <span id="connectedStatusText">Phone connected ✓</span>
+            <span id="connectedStatusStar" style="color: var(--status-emerald);">✦</span>
+          </div>
+
+          <h2 class="headline-primary" style="font-size: 24px;" id="connectedHeading">Ready to receive</h2>
+          <p class="subheadline" id="connectedSubheading">Select or capture any file on your phone now.</p>
+
+          <div style="margin: 28px 0; padding: 24px; border-radius: var(--radius-lg); background-color: rgba(255,255,255,0.02); border: 1px dashed var(--border-strong);">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 10px;" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" x2="12" y1="15" y2="3"/>
+            </svg>
+            <div style="font-size: 14px; color: var(--text-secondary);" id="connectedWaitingNotice">Waiting for file selection on phone...</div>
+          </div>
+
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; width: 100%;">
+            <div class="transfer-badge" id="transferModeBadge" style="margin: 0;">
+              <span>MODE: Direct Encrypted Stream (RAM Only)</span>
+            </div>
+            <button type="button" class="btn-simulate-drop" id="btnSimulateInterference" title="Simulate 5-second signal drop to test heartbeat detection and reconnecting state">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M2 12h20M2 12l5-5M2 12l5 5"/>
+              </svg>
+              <span>Test Signal Drop</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- STATE 4: RECEIVING IN PROGRESS -->
+        <div class="state-view animate-fade-in" id="viewReceiving" style="display: none; width: 100%;">
+          <div class="status-pill emerald" id="receivingStatusPill">
+            <span class="status-indicator-dot pulse" aria-hidden="true"></span>
+            <span id="receivingStatusLabel">Receiving stream...</span>
+            <span style="color: var(--status-emerald);">✦</span>
+          </div>
+
+          <div class="file-preview-card" id="receivingCard">
+            <div class="file-icon-box" id="receivingIconBox">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+            </div>
+            <div class="file-meta">
+              <div class="file-name" id="receivingFileName">Document.pdf</div>
+              <div class="file-size" id="receivingFileSize">0 MB / 0 MB</div>
+            </div>
+          </div>
+
+          <!-- Real-Time Dynamic Progress Indicator -->
+          <div class="progress-container">
+            <div class="progress-hero-wrap">
+              <span class="progress-hero-number monospace-digits" id="receivingPercent">0</span>
+              <span class="progress-hero-unit">%</span>
+            </div>
+
+            <div class="progress-bar-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="File transfer progress">
+              <div class="progress-bar-fill active" id="receivingProgressBar" style="width: 0%;"></div>
+            </div>
+
+            <div class="progress-stats-grid">
+              <div class="stat-col">
+                <span class="stat-label">TRANSFERRED</span>
+                <span class="stat-value monospace-digits" id="receivingBytes">0 B / 0 B</span>
+              </div>
+              <div class="stat-col">
+                <span class="stat-label">SPEED</span>
+                <span class="stat-value monospace-digits" id="receivingSpeed">0 KB/s</span>
+              </div>
+              <div class="stat-col">
+                <span class="stat-label">CHUNKS</span>
+                <span class="stat-value monospace-digits" id="receivingChunks">0 / --</span>
+              </div>
+              <div class="stat-col">
+                <span class="stat-label">REMAINING</span>
+                <span class="stat-value monospace-digits" id="receivingEta">--</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STATE 5: TRANSFER COMPLETED -->
+        <div class="state-view animate-fade-in" id="viewCompleted" style="display: none; width: 100%;">
+          <div class="status-pill emerald">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="animate-success-icon" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <span>File received ✓</span>
+            <span style="color: var(--status-emerald);">✦</span>
+          </div>
+
+          <div class="file-preview-card" id="completedFileCard">
+            <div class="file-icon-box" id="completedIconBox">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+            </div>
+            <div class="file-meta">
+              <div class="file-name" id="completedFileName">Resume.pdf</div>
+              <div class="file-size" id="completedFileSize">4.2 MB</div>
+            </div>
+          </div>
+
+          <!-- SHA-256 Checksum Cryptographic Verification Pill -->
+          <div class="sha-verification-pill" id="shaVerificationPill" style="display: flex;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <polyline points="9 12 11 14 15 10"/>
+            </svg>
+            <span class="sha-hash-text" id="shaHashText">SHA-256: Computing checksum...</span>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 14px;">
+            <button type="button" class="btn-primary" id="btnDownloadReceived" aria-label="Download received file">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" x2="12" y1="15" y2="3"/>
+              </svg>
+              <span>DOWNLOAD</span>
+            </button>
+            <button type="button" class="btn-secondary" id="btnReceiveAnother" aria-label="Receive another file">
+              <span>RECEIVE ANOTHER</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- STATE 6: EXPIRED -->
+        <div class="state-view animate-fade-in" id="viewExpired" style="display: none; width: 100%;">
+          <div class="status-pill amber">
+            <span class="status-indicator-dot" aria-hidden="true"></span>
+            <span>Session expired</span>
+          </div>
+
+          <h2 class="headline-primary" style="font-size: 22px;">Session Expired</h2>
+          <p class="subheadline" style="margin-bottom: 24px;">For privacy and security, temporary pairing sessions expire after 2 minutes.</p>
+
+          <button type="button" class="btn-primary" id="btnNewQr">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+              <path d="M21 3v5h-5"/>
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+              <path d="M3 21v-5h5"/>
+            </svg>
+            <span>NEW QR CODE</span>
+          </button>
+        </div>
+
+        <!-- STATE 7: ERROR -->
+        <div class="state-view animate-fade-in" id="viewError" style="display: none; width: 100%;">
+          <div class="status-pill rose">
+            <span class="status-indicator-dot" style="background-color: var(--status-rose);" aria-hidden="true"></span>
+            <span>Connection Error</span>
+          </div>
+
+          <h2 class="headline-primary" style="font-size: 22px;">Connection Failed</h2>
+          <p class="subheadline" style="margin-bottom: 24px;">Could not connect to phone. Make sure both devices are online.</p>
+
+          <div style="display: flex; gap: 12px; justify-content: center; width: 100%;">
+            <button type="button" class="btn-primary" id="btnRetrySession">RETRY</button>
+            <button type="button" class="btn-secondary" id="btnResetToNew">START OVER</button>
+          </div>
+        </div>
+
+        <!-- RECENT TRANSFERS (CURRENT SESSION ONLY, NON-PERSISTENT) -->
+        <div class="recent-transfers-container" id="recentTransfersContainer" style="display: none;">
+          <div class="recent-transfers-header">
+            <div class="recent-transfers-title-wrap">
+              <span class="recent-transfers-title">SESSION FILES</span>
+              <span class="recent-count-badge" id="recentCountBadge">0/3</span>
+            </div>
+            <span class="recent-ephemeral-note">Non-persistent (last 3)</span>
+          </div>
+          <div class="recent-transfers-list" id="recentTransfersList" role="list">
+            <!-- Dynamic session items -->
+          </div>
+        </div>
+
+      </section>
+    </main>
+
+    <!-- ZERO-KNOWLEDGE SECURITY INSPECTOR MODAL -->
+    <div class="security-modal-backdrop" id="securityModal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="securityModalTitle">
+      <div class="security-modal-box">
+        <div class="security-modal-header">
+          <div class="security-modal-title" id="securityModalTitle">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <span>Security & Privacy Architecture</span>
+            <span style="color: #34d399;">✦</span>
+          </div>
+          <button type="button" class="security-modal-close" id="btnCloseSecurityModal" aria-label="Close security inspector">✕</button>
+        </div>
+
+        <div class="security-matrix">
+          <div class="security-matrix-row">
+            <div class="security-matrix-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </div>
+            <div class="security-matrix-info">
+              <div class="security-matrix-name">Encrypted Transport</div>
+              <div class="security-matrix-detail">Direct memory stream secured via TLS with AES-256 GCM cryptographic cipher.</div>
+            </div>
+            <div class="security-matrix-val">TLS 1.3 AES-GCM</div>
+          </div>
+
+          <div class="security-matrix-row">
+            <div class="security-matrix-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
+                <line x1="2" y1="2" x2="22" y2="22"/>
+              </svg>
+            </div>
+            <div class="security-matrix-info">
+              <div class="security-matrix-name">Zero Cloud Retention</div>
+              <div class="security-matrix-detail">Payload streams in browser RAM only. Zero bytes stored on servers, databases, or disks.</div>
+            </div>
+            <div class="security-matrix-val">0 B STORED</div>
+          </div>
+
+          <div class="security-matrix-row">
+            <div class="security-matrix-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <div class="security-matrix-info">
+              <div class="security-matrix-name">Ephemeral 120s TTL</div>
+              <div class="security-matrix-detail">Sessions auto-expire after 2 minutes. Memory buffers are immediately reclaimed.</div>
+            </div>
+            <div class="security-matrix-val">120s EXPIRY</div>
+          </div>
+
+          <div class="security-matrix-row">
+            <div class="security-matrix-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <polyline points="9 12 11 14 15 10"/>
+              </svg>
+            </div>
+            <div class="security-matrix-info">
+              <div class="security-matrix-name">Integrity Verification</div>
+              <div class="security-matrix-detail">Every received file is verified via Web Crypto SHA-256 to ensure 100% bit integrity.</div>
+            </div>
+            <div class="security-matrix-val">SHA-256</div>
+          </div>
+        </div>
+
+        <button type="button" class="btn-primary" id="btnGotItSecurity" style="width: 100%; padding: 10px;">
+          <span>UNDERSTOOD</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Application Entry Point -->
+    <script type="module" src="/js/app.js"></script>
+  </body>
+</html>

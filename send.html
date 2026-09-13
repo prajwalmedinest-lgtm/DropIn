@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>DropIn — Send to Laptop</title>
+    <meta name="description" content="Send files or photos from your phone directly to your laptop." />
+    
+    <link rel="stylesheet" href="/css/global.css" />
+    <link rel="stylesheet" href="/css/components.css" />
+    <link rel="stylesheet" href="/css/animations.css" />
+  </head>
+  <body style="padding: 16px 14px;">
+    <!-- AMBIENT CELESTIAL STARS BACKGROUND LAYER -->
+    <div class="ambient-stars-layer" aria-hidden="true">
+      <span class="star-glyph star-twinkle-slow" style="top: 8%; left: 10%; font-size: 16px; opacity: 0.35;">✦</span>
+      <span class="star-glyph star-twinkle-medium" style="top: 20%; right: 12%; font-size: 13px; opacity: 0.28;">✧</span>
+      <span class="star-glyph star-twinkle-fast" style="top: 75%; left: 14%; font-size: 12px; opacity: 0.35;">✦</span>
+      <span class="star-glyph star-twinkle-slow" style="bottom: 12%; right: 15%; font-size: 18px; opacity: 0.3;">✦</span>
+    </div>
+
+    <main class="app-viewport" id="senderMain">
+      <!-- App Brand Header -->
+      <header class="brand-title" id="senderBrand">
+        <span class="brand-dot" aria-hidden="true"></span>
+        <span>DROPIN MOBILE</span>
+        <span style="color: var(--status-emerald); font-size: 12px;">✦</span>
+      </header>
+
+      <!-- Stage Card Container -->
+      <section class="stage-card" id="senderStageCard" aria-live="polite">
+
+        <!-- SENDER RECONNECTING ALERT BANNER -->
+        <div class="reconnecting-alert" id="senderReconnectingAlert" style="display: none;" role="alert">
+          <div class="reconnecting-alert-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="animate-spin-slow">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+            </svg>
+          </div>
+          <div class="reconnecting-alert-info">
+            <div class="reconnecting-alert-title">
+              <span>Reconnecting...</span>
+              <span class="reconnecting-alert-badge">Interference</span>
+            </div>
+            <div class="reconnecting-alert-subtitle">Signal dropped. Restoring DataChannel heartbeat...</div>
+          </div>
+          <div class="reconnecting-alert-ping" aria-hidden="true">
+            <span class="reconnecting-pulse-dot"></span>
+          </div>
+        </div>
+
+        <!-- STATE 1: CONNECTING TO LAPTOP -->
+        <div class="state-view animate-fade-in" id="senderViewConnecting" style="width: 100%;">
+          <div class="status-pill amber">
+            <span class="status-indicator-dot pulse-amber" aria-hidden="true"></span>
+            <span>Connecting to laptop...</span>
+          </div>
+          <h1 class="headline-primary" style="font-size: 22px;">Pairing Device</h1>
+          <p class="subheadline" style="font-size: 14px;">Establishing peer connection with your laptop.</p>
+        </div>
+
+        <!-- STATE 2: READY TO CHOOSE / CAPTURE FILE -->
+        <div class="state-view animate-fade-in" id="senderViewReady" style="display: none; width: 100%;">
+          <div class="status-pill emerald" id="senderReadyStatusPill">
+            <span class="status-indicator-dot pulse" id="senderReadyStatusDot" aria-hidden="true"></span>
+            <span id="senderReadyStatusText">Connected to laptop ✓</span>
+          </div>
+
+          <h1 class="headline-primary" style="font-size: 24px;">Send to your laptop</h1>
+          <p class="subheadline" style="font-size: 14px;">Choose any file or take a fresh photo.</p>
+
+          <!-- Hidden file input elements -->
+          <input type="file" id="filePickerInput" style="display: none;" />
+          <input type="file" id="cameraPickerInput" accept="image/*" capture="environment" style="display: none;" />
+
+          <!-- Large Mobile Touch Actions -->
+          <div class="action-grid" id="actionGrid">
+            <button type="button" class="action-tile-btn" id="btnTriggerFilePicker" aria-label="Choose file from phone storage">
+              <div class="action-tile-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+              </div>
+              <span class="action-tile-label">CHOOSE FILE</span>
+            </button>
+
+            <button type="button" class="action-tile-btn" id="btnTriggerCamera" aria-label="Take photo with phone camera">
+              <div class="action-tile-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+                  <circle cx="12" cy="13" r="3"/>
+                </svg>
+              </div>
+              <span class="action-tile-label">TAKE PHOTO</span>
+            </button>
+          </div>
+
+          <div style="margin-top: 22px; font-size: 12px; color: var(--text-tertiary);">
+            Direct P2P transfer • No files stored on server
+          </div>
+        </div>
+
+        <!-- STATE 3: FILE SELECTED & PREVIEW -->
+        <div class="state-view animate-fade-in" id="senderViewSelected" style="display: none; width: 100%;">
+          <div class="status-pill emerald">
+            <span class="status-indicator-dot" aria-hidden="true"></span>
+            <span>File ready to send</span>
+          </div>
+
+          <h2 class="headline-primary" style="font-size: 20px;">Ready to Send</h2>
+
+          <!-- File preview card with optional image thumbnail -->
+          <div class="file-preview-card" id="senderFileCard">
+            <div class="file-icon-box" id="senderIconBox">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+            </div>
+            <div class="file-meta">
+              <div class="file-name" id="selectedFileName">file.pdf</div>
+              <div class="file-size" id="selectedFileSize">0 KB</div>
+            </div>
+          </div>
+
+          <div id="imagePreviewContainer" style="display: none; width: 100%; margin-bottom: 16px;">
+            <img id="imagePreview" alt="Selected photo preview" style="max-width: 100%; max-height: 180px; object-fit: contain; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); display: block; margin: 0 auto;" />
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+            <button type="button" class="btn-primary" id="btnSendToLaptop" aria-label="Send file to laptop">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+              <span>SEND TO LAPTOP</span>
+            </button>
+            <button type="button" class="btn-secondary" id="btnPickDifferent">
+              <span>CHOOSE DIFFERENT FILE</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- STATE 4: SENDING / TRANSFERRING -->
+        <div class="state-view animate-fade-in" id="senderViewSending" style="display: none; width: 100%;">
+          <div class="status-pill emerald" id="sendingStatusPill">
+            <span class="status-indicator-dot pulse" id="sendingStatusDot" aria-hidden="true"></span>
+            <span id="sendingStatusLabel">Transferring chunks...</span>
+          </div>
+
+          <h2 class="headline-primary" style="font-size: 20px;" id="sendingHeading">Sending to Laptop</h2>
+
+          <div class="file-preview-card" style="margin-top: 14px;">
+            <div class="file-icon-box" id="sendingIconBox">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+            </div>
+            <div class="file-meta">
+              <div class="file-name" id="sendingFileName">file.pdf</div>
+              <div class="file-size" id="sendingFileSizeSub">0 KB</div>
+            </div>
+          </div>
+
+          <!-- Real-Time Dynamic Progress Indicator -->
+          <div class="progress-container">
+            <div class="progress-hero-wrap">
+              <div class="progress-percent-hero">
+                <span id="sendingPercent">0</span><span class="progress-percent-unit">%</span>
+              </div>
+            </div>
+
+            <div class="progress-track" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Upload progress">
+              <div class="progress-bar-fill" id="sendingProgressBar" style="width: 0%;"></div>
+            </div>
+
+            <div class="progress-stats-grid">
+              <div class="progress-stat-item">
+                <span class="progress-stat-label">Transferred</span>
+                <span class="progress-stat-val" id="sendingBytes">0 KB / 0 KB</span>
+              </div>
+              <div class="progress-stat-item">
+                <span class="progress-stat-label">Speed</span>
+                <span class="progress-stat-val" id="sendingSpeed">-- KB/s</span>
+              </div>
+              <div class="progress-stat-item">
+                <span class="progress-stat-label">Chunks</span>
+                <span class="progress-stat-val" id="sendingChunks">0 / 0</span>
+              </div>
+              <div class="progress-stat-item">
+                <span class="progress-stat-label">Time Remaining</span>
+                <span class="progress-stat-val" id="sendingEta">Estimating...</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top: 16px; font-size: 13px; color: var(--text-tertiary);">
+            Keep this screen active until transfer finishes
+          </div>
+        </div>
+
+        <!-- STATE 5: TRANSFER COMPLETED -->
+        <div class="state-view animate-fade-in" id="senderViewCompleted" style="display: none; width: 100%;">
+          <div class="status-pill emerald">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="animate-success-icon" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <span>Sent to laptop ✓</span>
+          </div>
+
+          <h2 class="headline-primary" style="font-size: 22px;">Transfer Complete!</h2>
+          <p class="subheadline" style="margin-bottom: 22px;">Your file has arrived on your laptop and is ready to download.</p>
+
+          <button type="button" class="btn-primary" id="btnSendAnother">
+            <span>SEND ANOTHER FILE</span>
+          </button>
+        </div>
+
+        <!-- STATE 6: EXPIRED / ERROR -->
+        <div class="state-view animate-fade-in" id="senderViewError" style="display: none; width: 100%;">
+          <div class="status-pill rose">
+            <span class="status-indicator-dot" aria-hidden="true"></span>
+            <span>Session error</span>
+          </div>
+
+          <h2 class="headline-primary" style="font-size: 20px;" id="senderErrorTitle">Session Expired</h2>
+          <p class="subheadline" style="margin-bottom: 24px;" id="senderErrorDesc">This session has expired or the laptop is no longer active. Please scan a fresh QR code on your laptop.</p>
+
+          <a href="/" class="btn-secondary" style="text-decoration: none;">
+            <span>OPEN LAPTOP SCREEN</span>
+          </a>
+        </div>
+
+      </section>
+    </main>
+
+    <script type="module" src="/js/sender.js"></script>
+  </body>
+</html>
