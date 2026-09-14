@@ -278,15 +278,7 @@ class PhoneSenderApp {
       role: 'sender',
       sendStream: (data) => {
         if (this.signalling) {
-          if (typeof data === 'string') {
-            this.signalling.sendJson({
-              type: 'relay-string',
-              sessionId: this.sessionId,
-              payload: data
-            });
-          } else {
-            this.signalling.send(data);
-          }
+          this.signalling.send(data);
         }
       },
       onProgress: (prog) => {

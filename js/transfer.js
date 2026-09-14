@@ -226,12 +226,33 @@ export class FileTransferManager {
 
   /**
    * Handle incoming stream data (Metadata JSON, control strings, or binary chunks)
-   * @param {string|ArrayBuffer|Blob} data 
+   * @param {string|ArrayBuffer|Blob|Uint8Array|object} data 
    */
   async handleIncomingData(data) {
+    if (data === null || data === undefined) return;
+
+    // Handle JSON object or string metadata
+    if (typeof data === 'object' && !(data instanceof Blob) && !(data instanceof ArrayBuffer) && !(data instanceof Uint8Array)) {
+      const msg = data;
+      if (msg.type === 'relay-string' && msg.payload) {
+        return this.handleIncomingData(msg.payload);
+      }
+      if (msg.type === 'file-start') {
+        this.handleFileStart(msg);
+        return;
+      } else if (msg.type === 'file-end') {
+        await this.handleFileEnd(msg);
+        return;
+      }
+      return;
+    }
+
     if (typeof data === 'string') {
       try {
         const msg = JSON.parse(data);
+        if (msg.type === 'relay-string' && msg.payload) {
+          return this.handleIncomingData(msg.payload);
+        }
         if (msg.type === 'file-start') {
           this.handleFileStart(msg);
           return;
@@ -245,12 +266,14 @@ export class FileTransferManager {
       return;
     }
 
-    // Binary payload: Blob or ArrayBuffer chunk
+    // Binary payload: Blob, ArrayBuffer, or Uint8Array chunk
     let buffer;
     if (data instanceof Blob) {
       buffer = await data.arrayBuffer();
     } else if (data instanceof ArrayBuffer) {
       buffer = data;
+    } else if (data instanceof Uint8Array) {
+      buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
     } else {
       return;
     }
@@ -292,6 +315,18 @@ export class FileTransferManager {
         });
       });
     }
+
+    // Completion Watchdog: If all chunks or bytes have been collected, ensure handleFileEnd executes
+    if ((this.incomingMeta.totalChunks && this.chunkCounter >= this.incomingMeta.totalChunks) ||
+        (this.incomingMeta.size && this.receivedBytes >= this.incomingMeta.size)) {
+      if (this.autoCompleteTimer) clearTimeout(this.autoCompleteTimer);
+      this.autoCompleteTimer = setTimeout(() => {
+        if (this.receivedChunks.length > 0 && this.incomingMeta) {
+          console.log('[TransferManager] Watchdog triggered file completion');
+          this.handleFileEnd({ name: this.incomingMeta.name, size: this.receivedBytes });
+        }
+      }, 350);
+    }
   }
 
   /**
@@ -299,6 +334,10 @@ export class FileTransferManager {
    * @param {object} meta 
    */
   handleFileStart(meta) {
+    if (this.autoCompleteTimer) {
+      clearTimeout(this.autoCompleteTimer);
+      this.autoCompleteTimer = null;
+    }
     // Clear previous chunks and register new batch
     this.receivedChunks = [];
     sessionManager.registerBuffer(this.receivedChunks);
@@ -325,61 +364,76 @@ export class FileTransferManager {
    * @param {object} endMeta 
    */
   async handleFileEnd(endMeta) {
-    if (!this.incomingMeta && !endMeta) return;
-
-    const meta = { ...this.incomingMeta, ...endMeta };
-    const chunks = this.receivedChunks;
-    const mimeType = meta.mimeType || 'application/octet-stream';
-    const blob = new Blob(chunks, { type: mimeType });
-    const objectUrl = URL.createObjectURL(blob);
-
-    // Register blob URL in SessionManager for automatic memory lifecycle
-    sessionManager.registerBlobUrl(objectUrl);
-
-    // Compute or verify SHA-256 checksum
-    let checksum = meta.checksum || null;
-    if (!checksum) {
-      try {
-        checksum = await computeSha256Hex(blob);
-      } catch (e) {}
+    if (this.autoCompleteTimer) {
+      clearTimeout(this.autoCompleteTimer);
+      this.autoCompleteTimer = null;
     }
+    if (!this.incomingMeta && !endMeta) return;
+    if (this.isHandlingEnd) return;
+    this.isHandlingEnd = true;
 
-    // Final 100% progress emit
-    this.onProgress({
-      percent: 100,
-      transferred: blob.size,
-      total: blob.size,
-      speedText: 'Complete',
-      etaText: '0s',
-      currentChunk: this.chunkCounter,
-      totalChunks: meta.totalChunks || this.chunkCounter
-    });
+    try {
+      const meta = { ...this.incomingMeta, ...endMeta };
+      const chunks = this.receivedChunks;
+      const mimeType = meta.mimeType || 'application/octet-stream';
+      const blob = new Blob(chunks, { type: mimeType });
+      const objectUrl = URL.createObjectURL(blob);
 
-    this.onFileReceived({
-      blob,
-      objectUrl,
-      name: meta.name || 'received-file',
-      size: blob.size,
-      mimeType: mimeType,
-      checksum: checksum
-    });
+      // Register blob URL in SessionManager for automatic memory lifecycle
+      sessionManager.registerBlobUrl(objectUrl);
 
-    // Reset receiver state for next sequential file in active session
-    this.receivedChunks = [];
-    this.receivedBytes = 0;
-    this.chunkCounter = 0;
-    this.incomingMeta = null;
-    this.receiverSample = null;
+      // Compute or verify SHA-256 checksum
+      let checksum = meta.checksum || null;
+      if (!checksum) {
+        try {
+          checksum = await computeSha256Hex(blob);
+        } catch (e) {}
+      }
 
-    this.onStatusChange('File received');
+      // Final 100% progress emit
+      this.onProgress({
+        percent: 100,
+        transferred: blob.size,
+        total: blob.size,
+        speedText: 'Complete',
+        etaText: '0s',
+        currentChunk: this.chunkCounter,
+        totalChunks: meta.totalChunks || this.chunkCounter
+      });
+
+      this.onFileReceived({
+        blob,
+        objectUrl,
+        name: meta.name || 'received-file',
+        size: blob.size,
+        mimeType: mimeType,
+        checksum: checksum
+      });
+
+      // Reset receiver state for next sequential file in active session
+      this.receivedChunks = [];
+      this.receivedBytes = 0;
+      this.chunkCounter = 0;
+      this.incomingMeta = null;
+      this.receiverSample = null;
+
+      this.onStatusChange('File received');
+    } finally {
+      this.isHandlingEnd = false;
+    }
   }
 
   /**
    * Reset transfer buffers and state
    */
   cleanup() {
+    if (this.autoCompleteTimer) {
+      clearTimeout(this.autoCompleteTimer);
+      this.autoCompleteTimer = null;
+    }
     this.abortSending = true;
     this.isSending = false;
+    this.isHandlingEnd = false;
     if (this.rafProgressId) {
       cancelAnimationFrame(this.rafProgressId);
       this.rafProgressId = null;

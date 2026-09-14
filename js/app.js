@@ -526,9 +526,10 @@ class LaptopReceiverApp {
       role: 'receiver',
       sessionId: this.sessionId,
       onMessage: (msg) => {
-        if (msg.type === 'file-start' || msg.type === 'file-end' || msg.type === 'raw-string') {
+        if (msg.type === 'file-start' || msg.type === 'file-end' || msg.type === 'relay-string' || msg.type === 'raw-string') {
           if (this.transferManager) {
-            this.transferManager.handleIncomingData(msg.type === 'raw-string' ? msg.data : JSON.stringify(msg));
+            const payload = msg.type === 'relay-string' ? msg.payload : (msg.type === 'raw-string' ? msg.data : msg);
+            this.transferManager.handleIncomingData(payload);
           }
           return;
         }
@@ -806,20 +807,27 @@ class LaptopReceiverApp {
 
     // Display SHA-256 Checksum Verification
     const checksumVal = fileResult.checksum || fileResult.sha256;
-    const isIntegrityVerified = Boolean(checksumVal);
     if (this.shaVerificationPill && this.shaHashText) {
       if (checksumVal) {
         const shortHash = checksumVal.substring(0, 8) + '...' + checksumVal.substring(checksumVal.length - 8);
         this.shaHashText.textContent = `SHA-256: ${shortHash} ✓ Integrity 100% Intact`;
-        this.shaVerificationPill.style.display = 'flex';
       } else {
         this.shaHashText.textContent = 'Transfer Complete ✓ Integrity verified';
-        this.shaVerificationPill.style.display = 'flex';
       }
+      this.shaVerificationPill.style.display = 'flex';
     }
 
     // Dynamically update completed card icon
     updateFileIconBox(this.completedIconBox, fileResult.mimeType, fileResult.name);
+
+    // Make completed card interactive (click to download or preview)
+    if (this.completedFileCard) {
+      this.completedFileCard.style.cursor = 'pointer';
+      this.completedFileCard.title = 'Click to open or download file';
+      this.completedFileCard.onclick = () => {
+        this.downloadReceivedFile();
+      };
+    }
 
     // Register with SessionManager and add to current session's non-persistent list (last 3)
     const updatedHistory = sessionManager.recordTransfer({
@@ -838,8 +846,8 @@ class LaptopReceiverApp {
     // Trigger celebration pulse and restore ambient twinkle via Performance Manager
     starPerformanceManager.notifyTransferComplete();
 
-    // Auto-trigger browser download prompt once SHA-256 integrity check is successfully completed
-    if (this.isAutoDownloadEnabled && isIntegrityVerified) {
+    // Auto-trigger browser download prompt when auto-download is enabled
+    if (this.isAutoDownloadEnabled) {
       this.triggerVerifiedAutoDownload();
     } else {
       if (this.autoDownloadStatusNotice) {
