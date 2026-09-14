@@ -236,6 +236,7 @@ class PhoneSenderApp {
   handleSignallingMessage(msg) {
     switch (msg.type) {
       case 'sender-joined-success':
+      case 'receiver-ready':
         console.log('[Phone] Connected to session successfully');
         audioFeedback.playPairingSuccess();
         this.setupTransferManager();

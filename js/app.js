@@ -566,6 +566,8 @@ class LaptopReceiverApp {
         break;
 
       case 'sender-joined':
+      case 'join-sender':
+      case 'sender-ready':
         this.onSenderConnected();
         break;
 
