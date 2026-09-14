@@ -60,6 +60,7 @@ DropIn is a high-speed, zero-friction cross-device file transfer web application
 ```
 ├── index.html            # Desktop receiver view (QR display, progress meter, download vault)
 ├── send.html             # Mobile sender view (Camera picker, multi-file queue, transfer progress)
+├── vercel.json           # Dynamic routing rules for /s/:id shortlinks on static/edge hosts
 ├── css/
 │   ├── global.css        # Theme variables, typography & layout resets
 │   ├── components.css    # Cards, QR viewfinder, progress rings, queue lists & buttons
@@ -84,14 +85,14 @@ DropIn is a high-speed, zero-friction cross-device file transfer web application
 
 ---
 
-## ⚡ Getting Started
+## ⚡ Getting Started & Deployment
 
 ### Prerequisites
 
 - **Node.js** (v18 or higher recommended)
 - **npm** or **bun** / **yarn**
 
-### Installation
+### Local Development
 
 ```bash
 # Clone the repository
@@ -102,22 +103,23 @@ cd dropin
 
 # Install dependencies
 npm install
-```
 
-### Development Mode
-
-```bash
+# Start development server
 npm run dev
 ```
 Open your browser at `http://localhost:3000` to view the desktop interface. To test mobile transfer locally on the same Wi-Fi network, access your computer's local IP address (e.g. `http://192.168.1.X:3000`) or use the displayed QR code.
 
-### Production Build
+### Standalone Production Build (Node.js / Docker / Cloud Run)
 
 ```bash
 npm run build
 npm start
 ```
-The compiled bundle will be outputted to `dist/` and served as a standalone, production-ready full-stack application on port 3000.
+The compiled bundle will be outputted to `dist/` and served as a standalone, production-ready full-stack application on port 3000 with WebRTC signalling on `/ws`.
+
+### Vercel Deployment
+
+A `vercel.json` configuration is included at the root of the repository. When deploying to Vercel, the routing rules automatically map shortlinks (`/s/:id`) directly to `send.html?s=:id` and route static SPA fallbacks cleanly without 404 errors.
 
 ---
 
