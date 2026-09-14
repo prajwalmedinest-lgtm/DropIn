@@ -217,6 +217,11 @@ export class FileTransferManager {
 
     this.isSending = false;
     this.onStatusChange('Transfer completed');
+    return {
+      name: fileName,
+      size: totalBytes,
+      checksum: checksum
+    };
   }
 
   /**
@@ -358,6 +363,13 @@ export class FileTransferManager {
       mimeType: mimeType,
       checksum: checksum
     });
+
+    // Reset receiver state for next sequential file in active session
+    this.receivedChunks = [];
+    this.receivedBytes = 0;
+    this.chunkCounter = 0;
+    this.incomingMeta = null;
+    this.receiverSample = null;
 
     this.onStatusChange('File received');
   }

@@ -34,6 +34,79 @@ export class SignallingClient {
     this.keepaliveTimer = null;
     this.messageQueue = [];
     this.lastConnectedTime = 0;
+
+    // Mobile OS background / camera wakeup handlers
+    this.setupVisibilityListeners();
+  }
+
+  get isConnected() {
+    return Boolean(this.ws && this.ws.readyState === WebSocket.OPEN);
+  }
+
+  get bufferedAmount() {
+    return this.ws ? this.ws.bufferedAmount || 0 : 0;
+  }
+
+  setupVisibilityListeners() {
+    if (typeof document === 'undefined') return;
+
+    const handleWakeup = () => {
+      if (document.visibilityState === 'visible' && this.isSessionActive && !this.isExplicitlyClosed) {
+        console.log(`[SignallingClient] Tab resumed / active. Checking socket health for ${this.role}...`);
+        if (!this.isConnected) {
+          this.ensureConnected();
+        } else {
+          // Send instant ping to verify TCP connection didn't silently die while backgrounded
+          try {
+            this.ws.send(JSON.stringify({ type: 'ping', t: Date.now() }));
+          } catch (e) {
+            this.ensureConnected();
+          }
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleWakeup);
+    window.addEventListener('pageshow', handleWakeup);
+    window.addEventListener('focus', handleWakeup);
+  }
+
+  /**
+   * Immediately re-establish connection without waiting for backoff timers
+   */
+  ensureConnected() {
+    if (this.isExplicitlyClosed || !this.isSessionActive) return;
+    if (this.isConnected) return;
+
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.reconnectAttempts = 0;
+    this.connect();
+  }
+
+  /**
+   * Wait until signalling socket is connected and confirmed
+   * @param {number} timeoutMs
+   * @returns {Promise<boolean>}
+   */
+  waitUntilConnected(timeoutMs = 10000) {
+    if (this.isConnected) return Promise.resolve(true);
+    this.ensureConnected();
+
+    return new Promise((resolve, reject) => {
+      const startTime = Date.now();
+      const checkInterval = setInterval(() => {
+        if (this.isConnected) {
+          clearInterval(checkInterval);
+          resolve(true);
+        } else if (Date.now() - startTime > timeoutMs) {
+          clearInterval(checkInterval);
+          reject(new Error('Signalling connection timeout'));
+        }
+      }, 80);
+    });
   }
 
   /**

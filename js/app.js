@@ -22,6 +22,15 @@ class LaptopReceiverApp {
     // Non-persistent list of last 3 transfers in the current session
     this.sessionTransfers = [];
 
+    // Auto-download on verified SHA-256 integrity option (defaults to true for zero friction, persisted locally)
+    let savedAutoDownload = null;
+    try {
+      savedAutoDownload = localStorage.getItem('dropin_autodownload_enabled');
+    } catch (e) {
+      // localStorage may be restricted in private/sandboxed iframe
+    }
+    this.isAutoDownloadEnabled = savedAutoDownload !== null ? savedAutoDownload === 'true' : true;
+
     // Tour step definitions
     this.tourSteps = [
       {
@@ -77,6 +86,8 @@ class LaptopReceiverApp {
     this.btnConnectPhone = document.getElementById('btnConnectPhone');
     this.qrWrapper = document.getElementById('qrWrapper');
     this.qrCanvas = document.getElementById('qrCanvas');
+    this.qrRingProgress = document.getElementById('qrRingProgress');
+    this.qrCountdownBarFill = document.getElementById('qrCountdownBarFill');
     this.sessionCountdown = document.getElementById('sessionCountdown');
     this.qrUrlText = document.getElementById('qrUrlText');
     this.btnCopyUrl = document.getElementById('btnCopyUrl');
@@ -129,7 +140,15 @@ class LaptopReceiverApp {
     this.completedFileName = document.getElementById('completedFileName');
     this.completedFileSize = document.getElementById('completedFileSize');
     this.btnDownloadReceived = document.getElementById('btnDownloadReceived');
+    this.btnDownloadReceivedLabel = document.getElementById('btnDownloadReceivedLabel');
     this.btnReceiveAnother = document.getElementById('btnReceiveAnother');
+    this.toggleAutoDownloadCompleted = document.getElementById('toggleAutoDownloadCompleted');
+    this.autoDownloadStatusNotice = document.getElementById('autoDownloadStatusNotice');
+    this.autoDownloadNoticeText = document.getElementById('autoDownloadNoticeText');
+
+    // Auto-download header toggle
+    this.btnToggleAutoDownloadHeader = document.getElementById('btnToggleAutoDownloadHeader');
+    this.autoDownloadHeaderLabel = document.getElementById('autoDownloadHeaderLabel');
 
     // Recent session transfers list
     this.recentTransfersContainer = document.getElementById('recentTransfersContainer');
@@ -147,6 +166,22 @@ class LaptopReceiverApp {
   }
 
   bindEvents() {
+    // Auto-download toggle listeners
+    if (this.btnToggleAutoDownloadHeader) {
+      this.btnToggleAutoDownloadHeader.addEventListener('click', () => {
+        this.toggleAutoDownload();
+      });
+    }
+
+    if (this.toggleAutoDownloadCompleted) {
+      this.toggleAutoDownloadCompleted.addEventListener('change', (e) => {
+        this.setAutoDownload(e.target.checked);
+      });
+    }
+
+    // Sync initial UI state with stored option
+    this.updateAutoDownloadUI();
+
     // Generate QR CTA
     this.btnConnectPhone.addEventListener('click', () => {
       this.startNewSession();
@@ -399,6 +434,9 @@ class LaptopReceiverApp {
     this.showView('qr');
     this.qrUrlText.textContent = this.sessionUrl;
 
+    // Reset countdown visuals to full 100% immediately
+    this.updateCountdownVisuals(120, 120);
+
     try {
       await generateQRCode(this.qrCanvas, this.sessionUrl);
     } catch (err) {
@@ -412,10 +450,49 @@ class LaptopReceiverApp {
     this.initSignalling();
   }
 
+  updateCountdownVisuals(remainingSec, totalDuration = 120) {
+    const fraction = Math.max(0, Math.min(1, remainingSec / totalDuration));
+    const percentage = fraction * 100;
+    // With pathLength="100", stroke-dashoffset = 100 - percentage
+    // At 100% remaining (120s): offset is 0 (full ring)
+    // At 0% remaining (0s): offset is 100 (empty ring)
+    const dashOffset = Math.max(0, Math.min(100, 100 - percentage));
+
+    if (this.qrRingProgress) {
+      this.qrRingProgress.style.strokeDashoffset = dashOffset.toFixed(2);
+
+      if (remainingSec <= 10) {
+        this.qrRingProgress.classList.remove('warning');
+        this.qrRingProgress.classList.add('urgent');
+      } else if (remainingSec <= 30) {
+        this.qrRingProgress.classList.remove('urgent');
+        this.qrRingProgress.classList.add('warning');
+      } else {
+        this.qrRingProgress.classList.remove('warning', 'urgent');
+      }
+    }
+
+    if (this.qrCountdownBarFill) {
+      this.qrCountdownBarFill.style.width = `${percentage.toFixed(1)}%`;
+
+      if (remainingSec <= 10) {
+        this.qrCountdownBarFill.classList.remove('warning');
+        this.qrCountdownBarFill.classList.add('urgent');
+      } else if (remainingSec <= 30) {
+        this.qrCountdownBarFill.classList.remove('urgent');
+        this.qrCountdownBarFill.classList.add('warning');
+      } else {
+        this.qrCountdownBarFill.classList.remove('warning', 'urgent');
+      }
+    }
+  }
+
   startCountdown() {
     if (this.countdownTimer) {
       this.countdownTimer.stop();
     }
+
+    this.updateCountdownVisuals(120, 120);
 
     sessionManager.initSession(
       this.sessionId,
@@ -423,14 +500,18 @@ class LaptopReceiverApp {
       (formattedTime, remainingSec) => {
         if (this.sessionCountdown) {
           this.sessionCountdown.textContent = formattedTime;
-          if (remainingSec <= 30) {
+          if (remainingSec <= 10) {
+            this.sessionCountdown.style.color = 'var(--status-rose)';
+          } else if (remainingSec <= 30) {
             this.sessionCountdown.style.color = 'var(--status-amber)';
           } else {
             this.sessionCountdown.style.color = 'var(--status-emerald)';
           }
         }
+        this.updateCountdownVisuals(remainingSec, 120);
       },
       () => {
+        this.updateCountdownVisuals(0, 120);
         this.onSessionExpired();
       }
     );
@@ -522,8 +603,17 @@ class LaptopReceiverApp {
   onSenderConnected() {
     console.log('[Laptop] Sender connected to session!');
     audioFeedback.playPairingSuccess();
-    this.showView('connected');
 
+    if (this.views.completed.style.display !== 'block' && this.views.receiving.style.display !== 'block') {
+      this.showView('connected');
+    }
+
+    if (!this.transferManager) {
+      this.setupReceiverTransferManager();
+    }
+  }
+
+  setupReceiverTransferManager() {
     // Initialize Direct Memory Stream Transfer Manager as Receiver
     this.transferManager = new FileTransferManager({
       role: 'receiver',
@@ -659,6 +749,52 @@ class LaptopReceiverApp {
     }
   }
 
+  setAutoDownload(enabled) {
+    this.isAutoDownloadEnabled = Boolean(enabled);
+    try {
+      localStorage.setItem('dropin_autodownload_enabled', String(this.isAutoDownloadEnabled));
+    } catch (e) {
+      // Ignore localStorage errors
+    }
+    this.updateAutoDownloadUI();
+
+    // If currently in completed state and user just turned it on with a valid file, trigger download
+    if (this.isAutoDownloadEnabled && this.lastReceivedFile && this.views.completed.style.display !== 'none') {
+      this.triggerVerifiedAutoDownload();
+    }
+  }
+
+  toggleAutoDownload() {
+    this.setAutoDownload(!this.isAutoDownloadEnabled);
+  }
+
+  updateAutoDownloadUI() {
+    if (this.btnToggleAutoDownloadHeader) {
+      this.btnToggleAutoDownloadHeader.classList.toggle('active', this.isAutoDownloadEnabled);
+      this.btnToggleAutoDownloadHeader.setAttribute('aria-pressed', String(this.isAutoDownloadEnabled));
+    }
+    if (this.autoDownloadHeaderLabel) {
+      this.autoDownloadHeaderLabel.textContent = this.isAutoDownloadEnabled ? 'AUTO-DL: ON' : 'AUTO-DL: OFF';
+    }
+    if (this.toggleAutoDownloadCompleted) {
+      this.toggleAutoDownloadCompleted.checked = this.isAutoDownloadEnabled;
+    }
+  }
+
+  triggerVerifiedAutoDownload() {
+    if (!this.lastReceivedFile) return;
+    this.downloadReceivedFile();
+    if (this.autoDownloadStatusNotice) {
+      this.autoDownloadStatusNotice.style.display = 'flex';
+      if (this.autoDownloadNoticeText) {
+        this.autoDownloadNoticeText.textContent = 'Browser download prompt triggered automatically (SHA-256 verified ✓)';
+      }
+    }
+    if (this.btnDownloadReceivedLabel) {
+      this.btnDownloadReceivedLabel.textContent = 'DOWNLOAD AGAIN';
+    }
+  }
+
   onFileComplete(fileResult) {
     this.lastReceivedFile = fileResult;
 
@@ -668,6 +804,7 @@ class LaptopReceiverApp {
 
     // Display SHA-256 Checksum Verification
     const checksumVal = fileResult.checksum || fileResult.sha256;
+    const isIntegrityVerified = Boolean(checksumVal);
     if (this.shaVerificationPill && this.shaHashText) {
       if (checksumVal) {
         const shortHash = checksumVal.substring(0, 8) + '...' + checksumVal.substring(checksumVal.length - 8);
@@ -691,13 +828,25 @@ class LaptopReceiverApp {
     this.sessionTransfers = updatedHistory;
     this.renderRecentTransfers();
 
+    // Ensure auto-download toggle in completed view is synced
+    this.updateAutoDownloadUI();
+
     this.showView('completed');
 
     // Trigger celebration pulse and restore ambient twinkle via Performance Manager
     starPerformanceManager.notifyTransferComplete();
 
-    // Trigger auto-download prompt immediately for zero friction
-    this.downloadReceivedFile();
+    // Auto-trigger browser download prompt once SHA-256 integrity check is successfully completed
+    if (this.isAutoDownloadEnabled && isIntegrityVerified) {
+      this.triggerVerifiedAutoDownload();
+    } else {
+      if (this.autoDownloadStatusNotice) {
+        this.autoDownloadStatusNotice.style.display = 'none';
+      }
+      if (this.btnDownloadReceivedLabel) {
+        this.btnDownloadReceivedLabel.textContent = 'DOWNLOAD';
+      }
+    }
   }
 
   addSessionTransfer(fileItem) {
@@ -823,6 +972,8 @@ class LaptopReceiverApp {
       this.countdownTimer.stop();
       this.countdownTimer = null;
     }
+
+    this.updateCountdownVisuals(0, 120);
 
     // Clear active chunk buffers in SessionManager
     sessionManager.clearBuffers();

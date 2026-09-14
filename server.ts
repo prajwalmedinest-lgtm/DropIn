@@ -13,21 +13,33 @@ async function startServer() {
   const app = express();
   const server = http.createServer(app);
   const signalling = new SignallingManager();
+  let viteDevServer: any = null;
 
   // Attach WebSocket server for signalling on /ws with clean upgrade handling
   const wss = new WebSocketServer({ noServer: true });
   wss.on('connection', (ws) => {
     signalling.handleConnection(ws);
   });
+  wss.on('error', (err) => {
+    console.warn('[WSS] WebSocketServer error:', err?.message || err);
+  });
 
   server.on('upgrade', (request, socket, head) => {
+    socket.on('error', () => {
+      // Gracefully handle any premature client TCP teardowns
+    });
+
     try {
       const url = new URL(request.url || '', `http://${request.headers.host || 'localhost'}`);
       if (url.pathname === '/ws' || url.pathname.startsWith('/ws')) {
         wss.handleUpgrade(request, socket, head, (ws) => {
           wss.emit('connection', ws, request);
         });
+      } else if (viteDevServer && viteDevServer.ws) {
+        // Delegate Vite's internal development HMR WebSocket upgrades
+        viteDevServer.ws.handleUpgrade(request, socket, head);
       } else {
+        // Cleanly close socket for non-/ws paths without throwing
         socket.destroy();
       }
     } catch (e) {
@@ -80,14 +92,14 @@ async function startServer() {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   } else {
-    // In development, hook up Vite middlewares with HMR disabled
+    // In development, hook up Vite dev server and middlewares
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
-        hmr: false,
       },
       appType: 'custom',
     });
+    viteDevServer = vite;
     app.use(vite.middlewares);
 
     app.get('/', async (req, res, next) => {

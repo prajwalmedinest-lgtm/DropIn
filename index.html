@@ -4,15 +4,34 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>DropIn — Zero-friction cross-device file transfer</title>
-    <meta name="description" content="Zero-friction cross-device file upload utility connecting phone to laptop via QR code and WebRTC DataChannel." />
+    <meta name="description" content="Zero-friction cross-device file upload utility connecting phone to laptop via QR code and encrypted direct memory stream with automated SHA-256 integrity verification." />
     <meta property="og:title" content="DropIn" />
-    <meta property="og:description" content="Zero-friction cross-device file upload utility connecting phone to laptop via QR code and WebRTC DataChannel." />
+    <meta property="og:description" content="Zero-friction cross-device file upload utility connecting phone to laptop via QR code and encrypted direct memory stream with automated SHA-256 integrity verification." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     
     <link rel="stylesheet" href="/css/global.css" />
     <link rel="stylesheet" href="/css/components.css" />
     <link rel="stylesheet" href="/css/animations.css" />
+    <script>
+      // Cleanly handle benign dev-server HMR connection probes and unhandled rejections
+      (function() {
+        var origConsoleError = console.error;
+        console.error = function() {
+          var msg = Array.prototype.slice.call(arguments).join(' ');
+          if (msg.indexOf('[vite]') !== -1 || msg.indexOf('WebSocket closed without opened') !== -1) {
+            return;
+          }
+          origConsoleError.apply(console, arguments);
+        };
+        window.addEventListener('unhandledrejection', function(e) {
+          var reasonStr = String(e.reason && e.reason.message ? e.reason.message : e.reason || '');
+          if (reasonStr.indexOf('WebSocket') !== -1 || reasonStr.indexOf('vite') !== -1) {
+            e.preventDefault();
+          }
+        });
+      })();
+    </script>
   </head>
   <body>
     <!-- OPENING NAME DROP ANIMATION OVERLAY (2-3s Smooth Sequence) -->
@@ -60,6 +79,10 @@
         </header>
 
         <div style="display: flex; align-items: center; gap: 8px;">
+          <button type="button" class="auto-download-toggle-btn active" id="btnToggleAutoDownloadHeader" title="Toggle automatic browser download upon SHA-256 integrity verification" aria-pressed="true">
+            <span class="auto-download-toggle-dot" aria-hidden="true"></span>
+            <span id="autoDownloadHeaderLabel">AUTO-DL: ON</span>
+          </button>
           <button type="button" class="security-shield-btn" id="btnOpenSecurityModal" title="View cryptographic & peer-to-peer security specifications">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -172,10 +195,18 @@
           <h2 class="headline-primary" style="font-size: 22px; margin-bottom: 4px;">Scan with your phone</h2>
           <p class="subheadline" style="font-size: 13px;">Open your phone camera and point at the frame below.</p>
 
-          <!-- QR Container with Viewfinder Frame Overlay & Border Pulse -->
+          <!-- QR Container with 120s TTL Progress Ring & Viewfinder Frame -->
           <div class="qr-frame-wrapper" id="qrWrapper">
             <canvas id="qrCanvas" class="qr-canvas" width="220" height="220" aria-label="QR Code to pair phone"></canvas>
             
+            <!-- SVG Progress Ring Animation (120s Session TTL) -->
+            <svg class="qr-countdown-ring-svg" viewBox="0 0 256 256" aria-hidden="true">
+              <!-- Background Track -->
+              <rect class="qr-ring-track" x="4" y="4" width="248" height="248" rx="16" />
+              <!-- Animated Progress Ring (pathLength 100 makes dashoffset map directly to percentage) -->
+              <rect class="qr-ring-progress" id="qrRingProgress" x="4" y="4" width="248" height="248" rx="16" pathLength="100" />
+            </svg>
+
             <!-- Camera Viewfinder Overlay & Scanning Guide -->
             <div class="qr-target-overlay" aria-hidden="true">
               <div class="qr-pulse-reticle"></div>
@@ -195,12 +226,18 @@
             <span>Align camera inside frame</span>
           </div>
 
-          <div style="display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--text-secondary); font-size: 13px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="10"/>
-              <polyline points="12 6 12 12 16 14"/>
-            </svg>
-            <span>Session expires in <strong class="monospace-digits" id="sessionCountdown">02:00</strong></span>
+          <!-- Session Countdown Timer & Visual Progress Bar -->
+          <div class="qr-session-timer-wrap">
+            <div class="qr-session-timer-row">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+              <span>Session expires in <strong class="monospace-digits" id="sessionCountdown">02:00</strong></span>
+            </div>
+            <div class="qr-countdown-bar-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" aria-label="Session time remaining">
+              <div class="qr-countdown-bar-fill" id="qrCountdownBarFill" style="width: 100%;"></div>
+            </div>
           </div>
 
           <div class="qr-url-pill" id="qrUrlDisplay">
@@ -345,6 +382,29 @@
             <span class="sha-hash-text" id="shaHashText">SHA-256: Computing checksum...</span>
           </div>
 
+          <!-- Auto-Download on Verified SHA-256 Integrity Setting -->
+          <div class="auto-download-setting-row" id="autoDownloadSettingRow">
+            <div class="auto-download-info">
+              <div class="auto-download-title">
+                <span>Auto-download on SHA-256 verification</span>
+                <span class="auto-download-badge">Zero Friction</span>
+              </div>
+              <div class="auto-download-sub">Prompts browser download instantly once integrity is verified</div>
+            </div>
+            <label class="switch-toggle" title="Toggle automatic browser download">
+              <input type="checkbox" id="toggleAutoDownloadCompleted" checked aria-label="Toggle auto-download on SHA-256 integrity verification" />
+              <span class="switch-slider"></span>
+            </label>
+          </div>
+
+          <!-- Notice text when auto-download is prompted -->
+          <div class="auto-download-status-notice" id="autoDownloadStatusNotice" style="display: none;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <span id="autoDownloadNoticeText">Browser download prompt triggered automatically</span>
+          </div>
+
           <div style="display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 14px;">
             <button type="button" class="btn-primary" id="btnDownloadReceived" aria-label="Download received file">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -352,7 +412,7 @@
                 <polyline points="7 10 12 15 17 10"/>
                 <line x1="12" x2="12" y1="15" y2="3"/>
               </svg>
-              <span>DOWNLOAD</span>
+              <span id="btnDownloadReceivedLabel">DOWNLOAD</span>
             </button>
             <button type="button" class="btn-secondary" id="btnReceiveAnother" aria-label="Receive another file">
               <span>RECEIVE ANOTHER</span>

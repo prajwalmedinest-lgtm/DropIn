@@ -9,6 +9,25 @@
     <link rel="stylesheet" href="/css/global.css" />
     <link rel="stylesheet" href="/css/components.css" />
     <link rel="stylesheet" href="/css/animations.css" />
+    <script>
+      // Cleanly handle benign dev-server HMR connection probes and unhandled rejections
+      (function() {
+        var origConsoleError = console.error;
+        console.error = function() {
+          var msg = Array.prototype.slice.call(arguments).join(' ');
+          if (msg.indexOf('[vite]') !== -1 || msg.indexOf('WebSocket closed without opened') !== -1) {
+            return;
+          }
+          origConsoleError.apply(console, arguments);
+        };
+        window.addEventListener('unhandledrejection', function(e) {
+          var reasonStr = String(e.reason && e.reason.message ? e.reason.message : e.reason || '');
+          if (reasonStr.indexOf('WebSocket') !== -1 || reasonStr.indexOf('vite') !== -1) {
+            e.preventDefault();
+          }
+        });
+      })();
+    </script>
   </head>
   <body style="padding: 16px 14px;">
     <!-- AMBIENT CELESTIAL STARS BACKGROUND LAYER -->
@@ -70,7 +89,7 @@
           <p class="subheadline" style="font-size: 14px;">Choose any file or take a fresh photo.</p>
 
           <!-- Hidden file input elements -->
-          <input type="file" id="filePickerInput" style="display: none;" />
+          <input type="file" id="filePickerInput" multiple style="display: none;" />
           <input type="file" id="cameraPickerInput" accept="image/*" capture="environment" style="display: none;" />
 
           <!-- Large Mobile Touch Actions -->
@@ -105,12 +124,18 @@
         <div class="state-view animate-fade-in" id="senderViewSelected" style="display: none; width: 100%;">
           <div class="status-pill emerald">
             <span class="status-indicator-dot" aria-hidden="true"></span>
-            <span>File ready to send</span>
+            <span id="selectedViewStatusLabel">Ready to send</span>
           </div>
 
-          <h2 class="headline-primary" style="font-size: 20px;">Ready to Send</h2>
+          <h2 class="headline-primary" style="font-size: 20px;" id="selectedViewHeading">Ready to Send</h2>
 
-          <!-- File preview card with optional image thumbnail -->
+          <!-- Multi-file Queue Summary Banner -->
+          <div class="queue-summary-banner" id="queueSummaryBanner" style="display: none;">
+            <div class="queue-badge" id="queueCountBadge">1 FILE</div>
+            <div class="queue-total-size" id="queueTotalSize">0 KB</div>
+          </div>
+
+          <!-- Single File Preview Card -->
           <div class="file-preview-card" id="senderFileCard">
             <div class="file-icon-box" id="senderIconBox">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -124,6 +149,29 @@
             </div>
           </div>
 
+          <!-- Multi-file Queue Item List -->
+          <div class="queue-list-container" id="queueListContainer" style="display: none;">
+            <!-- Dynamically populated -->
+          </div>
+
+          <!-- Quick Add More to Queue row -->
+          <div class="queue-add-more-row" id="queueAddMoreRow">
+            <button type="button" class="queue-mini-btn" id="btnAddMoreFiles">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span>+ Add Files</span>
+            </button>
+            <button type="button" class="queue-mini-btn" id="btnAddMorePhoto">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+                <circle cx="12" cy="13" r="3"/>
+              </svg>
+              <span>+ Add Photo</span>
+            </button>
+          </div>
+
           <div id="imagePreviewContainer" style="display: none; width: 100%; margin-bottom: 16px;">
             <img id="imagePreview" alt="Selected photo preview" style="max-width: 100%; max-height: 180px; object-fit: contain; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); display: block; margin: 0 auto;" />
           </div>
@@ -134,10 +182,10 @@
                 <line x1="22" y1="2" x2="11" y2="13"/>
                 <polygon points="22 2 15 22 11 13 2 9 22 2"/>
               </svg>
-              <span>SEND TO LAPTOP</span>
+              <span id="btnSendToLaptopLabel">SEND TO LAPTOP</span>
             </button>
             <button type="button" class="btn-secondary" id="btnPickDifferent">
-              <span>CHOOSE DIFFERENT FILE</span>
+              <span>CLEAR / START OVER</span>
             </button>
           </div>
         </div>
@@ -150,6 +198,7 @@
           </div>
 
           <h2 class="headline-primary" style="font-size: 20px;" id="sendingHeading">Sending to Laptop</h2>
+          <div id="sendingQueueSubtext" style="font-size: 13px; color: var(--text-secondary); margin-top: 4px; font-family: var(--font-mono); display: none;">File 1 of 1</div>
 
           <div class="file-preview-card" style="margin-top: 14px;">
             <div class="file-icon-box" id="sendingIconBox">
@@ -210,12 +259,25 @@
             <span>Sent to laptop ✓</span>
           </div>
 
-          <h2 class="headline-primary" style="font-size: 22px;">Transfer Complete!</h2>
-          <p class="subheadline" style="margin-bottom: 22px;">Your file has arrived on your laptop and is ready to download.</p>
+          <h2 class="headline-primary" style="font-size: 22px;" id="completedHeading">Transfer Complete!</h2>
+          <p class="subheadline" style="margin-bottom: 20px;" id="completedSubheadline">Your files arrived on your laptop and are ready to use.</p>
 
-          <button type="button" class="btn-primary" id="btnSendAnother">
-            <span>SEND ANOTHER FILE</span>
-          </button>
+          <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+            <button type="button" class="btn-primary" id="btnSendAnother">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span>SEND MORE FILES</span>
+            </button>
+            <button type="button" class="btn-secondary" id="btnTakeAnotherPhoto">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+                <circle cx="12" cy="13" r="3"/>
+              </svg>
+              <span>TAKE ANOTHER PHOTO</span>
+            </button>
+          </div>
         </div>
 
         <!-- STATE 6: EXPIRED / ERROR -->
