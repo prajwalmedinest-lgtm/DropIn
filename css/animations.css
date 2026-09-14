@@ -175,6 +175,40 @@
   }
 }
 
+@keyframes starFloatingDrift {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(0.9) rotate(0deg);
+    opacity: 0.3;
+  }
+  25% {
+    transform: translate3d(14px, -16px, 0) scale(1.25) rotate(22deg);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translate3d(-6px, 12px, 0) scale(0.85) rotate(-15deg);
+    opacity: 0.5;
+  }
+  75% {
+    transform: translate3d(12px, 8px, 0) scale(1.15) rotate(10deg);
+    opacity: 0.8;
+  }
+}
+
+@keyframes stateViewEntranceSnappy {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(12px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.02) translateY(-3px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 .star-twinkle-fast {
   animation: starTwinkle 2.2s infinite ease-in-out;
 }
@@ -188,7 +222,12 @@
 }
 
 .star-floating {
-  animation: starFloat 6s infinite ease-in-out;
+  animation: starFloatingDrift 4.8s infinite cubic-bezier(0.37, 0, 0.63, 1);
+}
+
+.state-view, .animate-fade-in {
+  animation: stateViewEntranceSnappy 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  will-change: transform, opacity;
 }
 
 /* ==========================================================

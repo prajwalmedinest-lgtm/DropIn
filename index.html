@@ -64,7 +64,9 @@
       <span class="star-glyph star-twinkle-medium" style="top: 22%; right: 16%; font-size: 13px; opacity: 0.3;">✧</span>
       <span class="star-glyph star-twinkle-fast" style="top: 65%; left: 8%; font-size: 12px; opacity: 0.4;">✦</span>
       <span class="star-glyph star-twinkle-slow" style="bottom: 16%; right: 12%; font-size: 19px; opacity: 0.32;">✦</span>
-      <span class="star-glyph star-floating" style="top: 42%; right: 7%; font-size: 11px; opacity: 0.25;">✧</span>
+      <span class="star-glyph star-floating" style="top: 42%; right: 7%; font-size: 14px; opacity: 0.45;">✧</span>
+      <span class="star-glyph star-floating" style="top: 32%; left: 12%; font-size: 12px; opacity: 0.4;">✦</span>
+      <span class="star-glyph star-floating" style="bottom: 40%; right: 25%; font-size: 16px; opacity: 0.38;">✧</span>
       <span class="star-glyph star-twinkle-medium" style="bottom: 28%; left: 20%; font-size: 15px; opacity: 0.3;">✦</span>
       <span class="star-glyph star-twinkle-fast" style="top: 8%; right: 32%; font-size: 10px; opacity: 0.35;">✦</span>
     </div>
@@ -79,7 +81,7 @@
         </header>
 
         <div style="display: flex; align-items: center; gap: 8px;">
-          <button type="button" class="auto-download-toggle-btn active" id="btnToggleAutoDownloadHeader" title="Toggle automatic browser download upon SHA-256 integrity verification" aria-pressed="true">
+          <button type="button" class="auto-download-toggle-btn active" id="btnToggleAutoDownloadHeader" style="display: none;" title="Toggle automatic browser download upon SHA-256 integrity verification" aria-pressed="true">
             <span class="auto-download-toggle-dot" aria-hidden="true"></span>
             <span id="autoDownloadHeaderLabel">AUTO-DL: ON</span>
           </button>
@@ -383,7 +385,7 @@
           </div>
 
           <!-- Auto-Download on Verified SHA-256 Integrity Setting -->
-          <div class="auto-download-setting-row" id="autoDownloadSettingRow">
+          <div class="auto-download-setting-row" id="autoDownloadSettingRow" style="display: none;">
             <div class="auto-download-info">
               <div class="auto-download-title">
                 <span>Auto-download on SHA-256 verification</span>

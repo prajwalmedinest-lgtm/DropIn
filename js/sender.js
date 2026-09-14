@@ -123,6 +123,7 @@ class PhoneSenderApp {
     });
 
     this.btnTriggerCamera.addEventListener('click', () => {
+      if (this.signalling) this.signalling.notifyMediaCaptureActive();
       this.cameraPickerInput.click();
     });
 
@@ -135,6 +136,7 @@ class PhoneSenderApp {
 
     if (this.btnAddMorePhoto) {
       this.btnAddMorePhoto.addEventListener('click', () => {
+        if (this.signalling) this.signalling.notifyMediaCaptureActive();
         this.cameraPickerInput.click();
       });
     }
@@ -279,6 +281,11 @@ class PhoneSenderApp {
       sendStream: (data) => {
         if (this.signalling) {
           this.signalling.send(data);
+        }
+      },
+      drainCheck: async () => {
+        if (this.signalling) {
+          await this.signalling.waitUntilDrain(192 * 1024);
         }
       },
       onProgress: (prog) => {

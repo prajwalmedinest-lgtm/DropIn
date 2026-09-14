@@ -97,6 +97,7 @@ export class FileTransferManager {
     this.role = options.role;
     this.sendSignal = options.sendSignal || options.sendStream || (() => {});
     this.sendStream = options.sendStream || options.sendSignal || (() => {});
+    this.drainCheck = options.drainCheck || (() => Promise.resolve());
     this.onProgress = options.onProgress || (() => {});
     this.onFileReceived = options.onFileReceived || (() => {});
     this.onStatusChange = options.onStatusChange || (() => {});
@@ -181,6 +182,11 @@ export class FileTransferManager {
       // Send binary frame
       this.sendStream(chunkBuffer);
 
+      // Backpressure drain check
+      if (this.drainCheck) {
+        await this.drainCheck();
+      }
+
       transferredBytes += (endOffset - startOffset);
       const percent = Math.min(100, Math.round((transferredBytes / totalBytes) * 100));
       const metrics = calculateTransferMetrics(transferredBytes, totalBytes, startTime, sample);
@@ -195,8 +201,8 @@ export class FileTransferManager {
         totalChunks
       });
 
-      // Micro-yield every 4 chunks to maintain 60fps fluidity and avoid UI thread starvation
-      if (i % 4 === 0 && i > 0) {
+      // Micro-yield between chunks to maintain 60fps fluidity and avoid UI thread starvation
+      if (i % 2 === 0) {
         await new Promise(r => setTimeout(r, 0));
       }
     }

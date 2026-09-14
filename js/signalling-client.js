@@ -242,12 +242,12 @@ export class SignallingClient {
 
     const handleWakeup = () => {
       if (document.visibilityState === 'visible' && this.isSessionActive && !this.isExplicitlyClosed) {
-        console.log(`[SignallingClient] Tab resumed. Checking connection health for ${this.role}...`);
+        console.log(`[SignallingClient] Tab resumed / media capture finished. Checking connection health for ${this.role}...`);
         if (!this.isConnected) {
           this.ensureConnected();
         } else {
-          // Send instant ping/beacon to verify connection
           this.sendHeartbeat();
+          this.flushQueue();
         }
       }
     };
@@ -255,6 +255,16 @@ export class SignallingClient {
     document.addEventListener('visibilitychange', handleWakeup);
     window.addEventListener('pageshow', handleWakeup);
     window.addEventListener('focus', handleWakeup);
+    window.addEventListener('resume', handleWakeup);
+  }
+
+  notifyMediaCaptureActive() {
+    console.log('[SignallingClient] Media capture active / triggered. Warming up keep-alive socket...');
+    if (this.isConnected) {
+      this.sendHeartbeat();
+    } else {
+      this.ensureConnected();
+    }
   }
 
   ensureConnected() {
@@ -566,7 +576,7 @@ export class SignallingClient {
     this.stopKeepalive();
     this.keepaliveTimer = setInterval(() => {
       this.sendHeartbeat();
-    }, 10000);
+    }, 4000);
   }
 
   stopKeepalive() {
@@ -587,6 +597,19 @@ export class SignallingClient {
     } catch (e) {}
   }
 
+  waitUntilDrain(maxBuffered = 256 * 1024) {
+    if (!this.ws || this.ws.bufferedAmount <= maxBuffered) return Promise.resolve();
+    return new Promise((resolve) => {
+      const startTime = Date.now();
+      const interval = setInterval(() => {
+        if (!this.ws || this.ws.bufferedAmount <= maxBuffered || Date.now() - startTime > 10000) {
+          clearInterval(interval);
+          resolve();
+        }
+      }, 15);
+    });
+  }
+
   send(data) {
     if (this.isConnected) {
       try {
@@ -598,13 +621,12 @@ export class SignallingClient {
         }
         return true;
       } catch (e) {
-        console.warn('[SignallingClient] Send error, queueing:', e);
+        console.warn('[SignallingClient] Send error, queueing payload:', e);
       }
     }
 
-    if (typeof data === 'string') {
-      this.messageQueue.push(data);
-    }
+    // Queue both strings and ArrayBuffer/Uint8Array/Blob binary payloads
+    this.messageQueue.push(data);
     return false;
   }
 
