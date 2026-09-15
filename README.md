@@ -145,6 +145,19 @@ The compiled bundle is served from `dist/` on port `3000` with local WebSockets 
 
 ---
 
+## ❓ Frequently Asked Questions (FAQ)
+
+### 1. How secure is my data?
+Your files and photos remain completely private and secure. DropIn establishes a direct Peer-to-Peer (P2P) WebRTC connection between your devices. Files stream directly through browser memory buffers and are never stored, logged, or cached on any server. Additionally, every transfer undergoes real-time SHA-256 cryptographic integrity verification before automatic download.
+
+### 2. Does it work without an internet connection?
+When running locally on a private local area network (LAN) or Wi-Fi router (e.g. via `npm run dev` or a local Docker/Node.js setup), DropIn can pair and transfer files locally between devices on the same network. When hosted on cloud platforms (like Vercel or Cloud Run), an internet connection is required only for the initial WebRTC signalling handshake and discovery, after which data streams directly peer-to-peer.
+
+### 3. What browsers are supported?
+DropIn works on all modern HTML5 and WebRTC-compatible browsers, including Google Chrome, Mozilla Firefox, Apple Safari, Microsoft Edge, and mobile browsers (iOS Safari, Android Chrome). No browser extensions or plugins are required.
+
+---
+
 ## 📄 License
 
 MIT License. Feel free to use, modify, and distribute.
